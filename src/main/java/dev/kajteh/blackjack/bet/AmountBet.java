@@ -3,10 +3,10 @@ package dev.kajteh.blackjack.bet;
 import dev.kajteh.blackjack.table.TableResult;
 import org.jetbrains.annotations.NotNull;
 
-public record ValueBet(double value) implements Bet<Double> {
+public record AmountBet(double value) implements Bet<Double> {
 
-    public static ValueBet of(final double value) {
-        return new ValueBet(value);
+    public static AmountBet of(final double value) {
+        return new AmountBet(value);
     }
 
     @Override
@@ -16,6 +16,6 @@ public record ValueBet(double value) implements Bet<Double> {
 
     @Override
     public Bet<Double> createDouble() {
-        return new ValueBet(this.value * 2);
+        return new AmountBet(this.value * 2);
     }
 }

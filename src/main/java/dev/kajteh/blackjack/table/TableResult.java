@@ -17,4 +17,12 @@ public enum TableResult {
     public double payoutMultiplier() {
         return this.payoutMultiplier;
     }
+
+    public boolean isWin() {
+        return this == WIN || this == BLACKJACK || this == DEALER_BUST;
+    }
+
+    public boolean isLoss() {
+        return this == LOSS || this == PLAYER_BUST;
+    }
 }

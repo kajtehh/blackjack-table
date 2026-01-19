@@ -1,43 +1,48 @@
 package dev.kajteh.blackjack.table;
 
 import dev.kajteh.blackjack.bet.Bet;
+import dev.kajteh.blackjack.card.Card;
 import dev.kajteh.blackjack.table.component.Deck;
 import dev.kajteh.blackjack.table.component.Hand;
+import dev.kajteh.blackjack.table.component.Participant;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.BiConsumer;
 
 public class Table<STAKE, BET extends Bet<STAKE>> {
 
     private BET bet;
-    private final BiConsumer<TableResult, STAKE> onFinish;
 
     private final Deck deck;
     private final Hand dealerHand, playerHand;
 
     private TableState state;
+    private boolean dealerRevealed;
 
-    public Table(@NotNull BET bet, @NotNull BiConsumer<TableResult, STAKE> onFinish) {
+    private TableCallback<STAKE> callback = new TableCallback<>() {};
+
+    public Table(@NotNull BET bet) {
         this.bet = bet;
-        this.onFinish = onFinish;
 
         this.deck = new Deck();
         this.deck.shuffle();
 
         this.dealerHand = new Hand();
         this.playerHand = new Hand();
-
-        this.start();
     }
 
-    private void start() {
-        this.state = TableState.INITIAL_DEALING;
+    public Table<STAKE, BET> watch(@NotNull TableCallback<STAKE> callback) {
+        this.callback = callback;
+        return this;
+    }
+
+    public void start() {
+        this.updateState(TableState.INITIAL_DEALING);
 
         for (int i = 0; i < 2; i++) {
-            this.playerHand.addCard(this.deck.draw());
-            this.dealerHand.addCard(this.deck.draw());
+            this.dealCard(Participant.PLAYER, true);
+            this.dealCard(Participant.DEALER, i == 0);
         }
 
         if (this.playerHand.isBlackjack() || this.dealerHand.isBlackjack()) {
@@ -45,13 +50,15 @@ public class Table<STAKE, BET extends Bet<STAKE>> {
             return;
         }
 
-        this.state = TableState.PLAYER_TURN;
+        this.updateState(TableState.PLAYER_TURN);
     }
 
     public void play(@NotNull TableAction action) {
         if (!action.isPossible(this)) {
             throw new IllegalStateException("Action " + action.name() + " is currently blocked.");
         }
+
+        this.callback.onAction(action);
         action.perform(this);
     }
 
@@ -64,22 +71,35 @@ public class Table<STAKE, BET extends Bet<STAKE>> {
     public boolean dealerStep() {
         if (this.state != TableState.DEALER_TURN) return false;
 
-        if (this.dealerHand.score() < 17) {
-            this.dealerHand.addCard(this.deck.draw());
-
-            if (this.dealerHand.isBust()) this.finish();
+        if(!this.dealerRevealed) {
+            this.revealDealerCard();
             return true;
         }
 
-        //this.finish();
+        if (this.dealerHand.score() < 17) {
+            this.dealCard(Participant.DEALER, true);
+            return true;
+        }
+
+        this.finish();
         return false;
     }
 
+    private void revealDealerCard() {
+        if (this.dealerRevealed) return;
+        this.dealerRevealed = true;
+
+        final Card hiddenCard = this.dealerHand.cards().get(1);
+
+        this.callback.onDeal(Participant.DEALER, hiddenCard, true);
+    }
+
     public void finish() {
-        this.state = TableState.GAME_OVER;
+        this.revealDealerCard();
+        this.updateState(TableState.GAME_OVER);
 
         final var result = this.calculateResult();
-        this.onFinish.accept(result, this.bet.result(result));
+        this.callback.onFinish(result, this.bet.result(result));
     }
 
     @SuppressWarnings("unchecked")
@@ -102,8 +122,32 @@ public class Table<STAKE, BET extends Bet<STAKE>> {
         };
     }
 
+    public boolean dealerRevealed() {
+        return this.dealerRevealed;
+    }
+
     public TableState state() {
         return this.state;
+    }
+
+    public boolean isGameOver() {
+        return this.state == TableState.GAME_OVER;
+    }
+
+    public boolean isActive() {
+        return !this.isGameOver();
+    }
+
+    public void updateState(@NotNull TableState state) {
+        this.state = state;
+        this.callback.onStateChange(state);
+    }
+
+    public Hand hand(@NotNull Participant participant) {
+        return switch (participant) {
+            case PLAYER -> this.playerHand;
+            case DEALER -> this.dealerHand;
+        };
     }
 
     public Hand playerHand() {
@@ -114,11 +158,14 @@ public class Table<STAKE, BET extends Bet<STAKE>> {
         return this.dealerHand;
     }
 
-    public Deck deck() {
-        return this.deck;
-    }
+    public void dealCard(@NotNull Participant participant, boolean visible) {
+        final var hand = this.hand(participant);
+        final var drawnCard = this.deck.draw();
 
-    public void state(final @NotNull TableState state) {
-        this.state = state;
+        hand.addCard(drawnCard);
+
+        this.callback.onDeal(participant, drawnCard, visible);
+
+        if(hand.isBust()) this.finish();
     }
 }
