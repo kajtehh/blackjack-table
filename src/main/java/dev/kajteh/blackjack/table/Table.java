@@ -7,29 +7,36 @@ import dev.kajteh.blackjack.table.component.Hand;
 import dev.kajteh.blackjack.table.component.Participant;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class Table<STAKE, BET extends Bet<STAKE>> {
 
-    private BET bet;
+    private static final int DEALER_STAND_THRESHOLD = 17;
+
+    private final List<BET> bets = new ArrayList<>();
 
     private final Deck deck;
-    private final Hand dealerHand, playerHand;
+    private final Hand dealerHand;
+
+    private final List<Hand> playerHands = new ArrayList<>();
 
     private TableState state;
+
     private boolean dealerRevealed;
+    private int currentHandIndex = 0;
 
     private TableCallback<STAKE> callback = new TableCallback<>() {};
 
     public Table(@NotNull BET bet) {
-        this.bet = bet;
+        this.bets.add(bet);
 
         this.deck = new Deck();
         this.deck.shuffle();
 
         this.dealerHand = new Hand();
-        this.playerHand = new Hand();
+        this.playerHands.add(new Hand());
     }
 
     public Table<STAKE, BET> watch(@NotNull TableCallback<STAKE> callback) {
@@ -45,7 +52,7 @@ public class Table<STAKE, BET extends Bet<STAKE>> {
             this.dealCard(Participant.DEALER, i == 0);
         }
 
-        if (this.playerHand.isBlackjack() || this.dealerHand.isBlackjack()) {
+        if (this.activeHand().isBlackjack() || this.dealerHand.isBlackjack()) {
             this.finish();
             return;
         }
@@ -76,7 +83,7 @@ public class Table<STAKE, BET extends Bet<STAKE>> {
             return true;
         }
 
-        if (this.dealerHand.score() < 17) {
+        if (this.dealerHand.score() < DEALER_STAND_THRESHOLD) {
             this.dealCard(Participant.DEALER, true);
             return true;
         }
@@ -105,6 +112,10 @@ public class Table<STAKE, BET extends Bet<STAKE>> {
     @SuppressWarnings("unchecked")
     void doubleBet() {
         this.bet = (BET) this.bet.createDouble();
+    }
+
+    boolean canDoubleBet() {
+        return this.bet.canDouble();
     }
 
     private TableResult calculateResult() {
@@ -145,13 +156,17 @@ public class Table<STAKE, BET extends Bet<STAKE>> {
 
     public Hand hand(@NotNull Participant participant) {
         return switch (participant) {
-            case PLAYER -> this.playerHand;
+            case PLAYER -> this.activeHand();
             case DEALER -> this.dealerHand;
         };
     }
 
-    public Hand playerHand() {
-        return this.playerHand;
+    public Hand activeHand() {
+        return this.playerHands.get(currentHandIndex);
+    }
+
+    public List<Hand> playerHands() {
+        return this.playerHands;
     }
 
     public Hand dealerHand() {

@@ -9,6 +9,9 @@ import java.util.List;
 
 public class Hand {
 
+    private static final int BLACKJACK_SCORE = 21;
+    private static final int INITIAL_HAND_SIZE = 2;
+
     private final List<Card> cards = new ArrayList<>();
 
     public void addCard(@NotNull Card card) {
@@ -26,7 +29,7 @@ public class Hand {
             }
         }
 
-        while (score > 21 && aces > 0) {
+        while (score > BLACKJACK_SCORE && aces > 0) {
             score -= 10;
             aces--;
         }
@@ -34,12 +37,26 @@ public class Hand {
         return score;
     }
 
+
     public boolean isBust() {
-        return this.score() > 21;
+        return this.score() > BLACKJACK_SCORE;
+    }
+
+    public boolean isSplittable() {
+        return this.isInitial() &&
+                this.cards.get(0).rank() == this.cards.get(1).rank();
+    }
+
+    public boolean isSafe() {
+        return !this.isBust();
+    }
+
+    public boolean isInitial() {
+        return this.cards.size() == INITIAL_HAND_SIZE;
     }
 
     public boolean isBlackjack() {
-        return this.cards.size() == 2 && this.score() == 21;
+        return this.cards.size() == 2 && this.score() == BLACKJACK_SCORE;
     }
 
     public List<Card> cards() {

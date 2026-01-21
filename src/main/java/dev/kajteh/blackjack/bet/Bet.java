@@ -7,5 +7,7 @@ public interface Bet<STAKE> {
 
     @NotNull STAKE result(@NotNull TableResult result);
 
-    Bet<STAKE> createDouble();
+    @NotNull Bet<STAKE> createDouble();
+
+    boolean canDouble();
 }

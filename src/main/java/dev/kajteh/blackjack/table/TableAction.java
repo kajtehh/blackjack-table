@@ -29,7 +29,9 @@ public enum TableAction {
     DOUBLE_DOWN {
         @Override
         public boolean isPossible(@NotNull Table<?, ?> table) {
-            return table.state() == TableState.PLAYER_TURN && table.hand(Participant.PLAYER).cards().size() == 2;
+            return table.state() == TableState.PLAYER_TURN
+                    && table.activeHand().isInitial()
+                    && table.canDoubleBet();
         }
 
         @Override
@@ -37,7 +39,7 @@ public enum TableAction {
             table.doubleBet();
             table.dealCard(Participant.PLAYER, true);
 
-            if(!table.hand(Participant.PLAYER).isBust()) {
+            if(table.activeHand().isSafe()) {
                 STAND.perform(table);
             }
         }
@@ -45,10 +47,7 @@ public enum TableAction {
     SPLIT {
         @Override
         public boolean isPossible(@NotNull Table<?, ?> table) {
-            final var cards = table.playerHand().cards();
-            return table.state() == TableState.PLAYER_TURN
-                    && cards.size() == 2
-                    && cards.get(0).rank() == cards.get(1).rank();
+            return table.state() == TableState.PLAYER_TURN && table.activeHand().isSplittable(); // todo add 4 hands limit
         }
 
         @Override
