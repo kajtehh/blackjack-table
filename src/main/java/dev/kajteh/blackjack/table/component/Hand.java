@@ -56,7 +56,7 @@ public class Hand {
     }
 
     public boolean isBlackjack() {
-        return this.cards.size() == 2 && this.score() == BLACKJACK_SCORE;
+        return this.isInitial() && this.score() == BLACKJACK_SCORE;
     }
 
     public List<Card> cards() {
